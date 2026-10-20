@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Computational Economy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Agent-based computational economics simulator running in the browser: households, factories, traders, credit banks, central banks and states in three currency zones.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&family=Schibsted+Grotesk:wght@600;700&display=swap">
+<style>
+/* Layout: statistical bulletin. A sticky control strip, a row of headline figures, then sections
+   (markets, money, households, industries, national accounts) as two-column grids of chart panels. */
+:root {
+	--bg: #f3f5f7;
+	--surface: #fcfcfb;
+	--ink-1: #14181d;
+	--ink-2: #424a55;
+	--ink-3: #6b7480;
+	--rule: #d9dee4;
+	--grid: #e7eaee;
+	--axis: #a9b1bb;
+	--accent: #1d5fa8;
+	--accent-ink: #ffffff;
+	--warn-bg: #fff3d6;
+	--warn-ink: #6b4a00;
+	--series-1: #2a78d6;
+	--series-2: #eb6834;
+	--series-3: #1baf7a;
+	--series-4: #eda100;
+	--series-5: #e87ba4;
+	--font-display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+	--font-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+	--font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--bg: #121417;
+		--surface: #1a1c1f;
+		--ink-1: #eef0f2;
+		--ink-2: #c1c7ce;
+		--ink-3: #8d96a1;
+		--rule: #2c3036;
+		--grid: #262a2f;
+		--axis: #4a515a;
+		--accent: #5b9be6;
+		--accent-ink: #0b1420;
+		--warn-bg: #3a2e10;
+		--warn-ink: #f2d38a;
+		--series-1: #3987e5;
+		--series-2: #d95926;
+		--series-3: #199e70;
+		--series-4: #c98500;
+		--series-5: #d55181;
+		color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--bg: #121417;
+	--surface: #1a1c1f;
+	--ink-1: #eef0f2;
+	--ink-2: #c1c7ce;
+	--ink-3: #8d96a1;
+	--rule: #2c3036;
+	--grid: #262a2f;
+	--axis: #4a515a;
+	--accent: #5b9be6;
+	--accent-ink: #0b1420;
+	--warn-bg: #3a2e10;
+	--warn-ink: #f2d38a;
+	--series-1: #3987e5;
+	--series-2: #d95926;
+	--series-3: #199e70;
+	--series-4: #c98500;
+	--series-5: #d55181;
+	color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--ink-1);
+	font: 15px/1.5 var(--font-body);
+}
+body::before {
+	content: "";
+	position: fixed;
+	inset: 0 0 auto;
+	height: env(safe-area-inset-top, 0px);
+	z-index: 10;
+	background: var(--surface);
+}
+.wrap {
+	max-width: 1240px;
+	margin: 0 auto;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: 0.95rem; font-weight: 600; }
+p { margin: 0; }
+.muted { color: var(--ink-3); }
+
+header.masthead { padding-block: 28px 18px; display: grid; gap: 8px; }
+header.masthead p { max-width: 68ch; color: var(--ink-2); }
+.eyebrow {
+	font: 500 0.72rem/1 var(--font-data);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--accent);
+}
+
+/* control strip */
+.controls {
+	position: sticky;
+	top: env(safe-area-inset-top, 0px);
+	z-index: 5;
+	background: var(--surface);
+	border-block: 1px solid var(--rule);
+}
+.controls .wrap {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: end;
+	gap: 10px 18px;
+	padding-block: 10px;
+}
+.field { display: grid; gap: 3px; }
+.field label, .field .label {
+	font: 500 0.68rem/1 var(--font-data);
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	color: var(--ink-3);
+}
+select, button {
+	font: inherit;
+	font-size: 0.88rem;
+	color: var(--ink-1);
+	background: var(--bg);
+	border: 1px solid var(--rule);
+	border-radius: 6px;
+	padding: 6px 10px;
+	min-height: 34px;
+}
+button { cursor: pointer; }
+button:hover, select:hover { border-color: var(--axis); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--accent-ink);
+	font-weight: 600;
+	min-width: 84px;
+}
+.button-row { display: flex; gap: 6px; }
+.segmented { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.segmented button { border: 0; border-radius: 0; background: var(--bg); }
+.segmented button + button { border-left: 1px solid var(--rule); }
+.segmented button[aria-pressed="true"] { background: var(--ink-1); color: var(--surface); }
+.clock {
+	margin-left: auto;
+	display: grid;
+	justify-items: end;
+	gap: 2px;
+	font-family: var(--font-data);
+	font-variant-numeric: tabular-nums;
+}
+.clock .date { font-size: 1rem; font-weight: 500; }
+.clock .rate { font-size: 0.74rem; color: var(--ink-3); }
+.pill {
+	display: inline-block;
+	font: 500 0.7rem/1 var(--font-data);
+	padding: 4px 7px;
+	border-radius: 999px;
+	background: var(--warn-bg);
+	color: var(--warn-ink);
+	letter-spacing: 0.03em;
+}
+
+/* headline figures */
+.figures {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 1px;
+	background: var(--rule);
+	border: 1px solid var(--rule);
+	margin-block: 20px 8px;
+}
+.figure { background: var(--surface); padding: 12px 14px; display: grid; gap: 4px; }
+.figure .label { font-size: 0.78rem; color: var(--ink-3); }
+.figure .value {
+	font: 500 1.35rem/1.1 var(--font-data);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -0.02em;
+}
+.figure .sub { font-size: 0.74rem; color: var(--ink-3); font-family: var(--font-data); }
+
+section.block { padding-block: 26px 6px; display: grid; gap: 14px; }
+.block-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.block-head p { color: var(--ink-3); font-size: 0.86rem; max-width: 72ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 14px; }
+
+.card {
+	background: var(--surface);
+	border: 1px solid var(--rule);
+	border-radius: 8px;
+	padding: 14px 14px 10px;
+	display: grid;
+	gap: 8px;
+	min-width: 0;
+}
+.card-head { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+.card-head .note { font-size: 0.78rem; color: var(--ink-3); }
+.chart-table-toggle { font-size: 0.75rem; padding: 3px 8px; min-height: 26px; flex: none; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.8rem; color: var(--ink-2); min-height: 0; }
+.chart-legend:empty { display: none; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-key { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
+.chart-plot { position: relative; height: 210px; }
+.chart-plot canvas { display: block; touch-action: pan-y; }
+.chart-empty {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	color: var(--ink-3);
+	font-size: 0.85rem;
+}
+.chart-tooltip {
+	position: absolute;
+	pointer-events: none;
+	background: var(--surface);
+	border: 1px solid var(--rule);
+	border-radius: 6px;
+	box-shadow: 0 4px 14px rgb(0 0 0 / 0.12);
+	padding: 7px 9px;
+	font-size: 0.78rem;
+	display: grid;
+	gap: 3px;
+	min-width: 150px;
+	z-index: 2;
+}
+.tip-date { color: var(--ink-3); font-family: var(--font-data); font-size: 0.72rem; }
+.tip-row { display: grid; grid-template-columns: 12px auto 1fr; align-items: center; gap: 7px; }
+.tip-row strong { font-family: var(--font-data); font-weight: 500; font-variant-numeric: tabular-nums; }
+.tip-row span:last-child { color: var(--ink-3); }
+.tip-key { width: 12px; height: 2px; border-radius: 1px; }
+.chart-table { overflow-x: auto; max-height: 260px; overflow-y: auto; }
+.table-caption { font-size: 0.74rem; color: var(--ink-3); margin-bottom: 4px; }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+th, td { padding: 5px 8px; border-bottom: 1px solid var(--grid); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; color: var(--ink-2); position: sticky; top: 0; background: var(--surface); }
+td { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+td:first-child { font-family: var(--font-body); }
+.table-wrap { overflow-x: auto; }
+.grid.accounts { grid-template-columns: 1fr; }
+.inline-field { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--ink-2); }
+
+footer { padding-block: 36px 40px; color: var(--ink-3); font-size: 0.82rem; display: grid; gap: 6px; }
+footer p { max-width: 80ch; }
+code { font-family: var(--font-data); font-size: 0.85em; }
+a { color: var(--accent); }
+
+@media (max-width: 640px) {
+	.clock { margin-left: 0; justify-items: start; }
+	.chart-plot { height: 190px; }
+}
+@media (prefers-reduced-motion: reduce) {
+	* { scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="wrap masthead">
+	<span class="eyebrow">Agent-based simulation · asm.js</span>
+	<h1>Computational Economy</h1>
+	<p>Households, factories, traders, credit banks, central banks and states trade in three currency zones.
+	Prices, interest rates and money supply emerge from each agent's own decisions. The simulation runs
+	in your browser. Its optimizers for CES and Cobb-Douglas utility and production run in an asm.js module.</p>
+</header>
+
+<div class="controls">
+	<div class="wrap">
+		<div class="field">
+			<label for="preset">Economic model</label>
+			<select id="preset"></select>
+		</div>
+		<div class="field">
+			<label for="scale">Population</label>
+			<select id="scale">
+				<option value="0.1">10 % · 600 households</option>
+				<option value="0.25" selected>25 % · 1,500 households</option>
+				<option value="0.5">50 % · 3,000 households</option>
+				<option value="1">100 % · 6,000 households</option>
+			</select>
+		</div>
+		<div class="field">
+			<span class="label">Simulation</span>
+			<div class="button-row">
+				<button id="run" class="primary" type="button">Pause</button>
+				<button id="step" type="button">+1 day</button>
+				<button id="reset" type="button">Restart</button>
+			</div>
+		</div>
+		<div class="field">
+			<label for="speed">Speed</label>
+			<select id="speed">
+				<option value="0">As fast as possible</option>
+				<option value="10">10 days per second</option>
+				<option value="2">2 days per second</option>
+			</select>
+		</div>
+		<div class="clock" aria-live="off">
+			<span class="date" id="clock-date">1 Jan 2001</span>
+			<span class="rate" id="clock-rate">day 0</span>
+		</div>
+	</div>
+</div>
+
+<main class="wrap">
+	<div class="block-head" style="padding-top: 18px;">
+		<div class="field">
+			<span class="label">Currency zone</span>
+			<div class="segmented" id="currency" role="group" aria-label="Currency zone"></div>
+		</div>
+		<div class="field">
+			<span class="label">Time range</span>
+			<div class="segmented" id="range" role="group" aria-label="Time range">
+				<button type="button" data-days="90" aria-pressed="false">90 days</button>
+				<button type="button" data-days="365" aria-pressed="false">1 year</button>
+				<button type="button" data-days="0" aria-pressed="true">All</button>
+			</div>
+		</div>
+		<span class="pill" id="init-phase">Initialization phase, until day 180</span>
+	</div>
+
+	<div class="figures" id="figures"></div>
+
+	<section class="block" id="markets">
+		<div class="block-head">
+			<h2>Markets</h2>
+			<p>Daily closing prices of settled trades in the selected currency. Factories raise prices when they sell out and lower them when stock remains.</p>
+		</div>
+		<div class="grid" data-charts="markets"></div>
+	</section>
+
+	<section class="block" id="money">
+		<div class="block-head">
+			<h2>Money and central bank</h2>
+			<p>The central bank sets the key interest rate from the gap between the price index and its target, which grows by the 2 % inflation target per year. Credit banks create deposits by lending.</p>
+		</div>
+		<div class="grid" data-charts="money"></div>
+	</section>
+
+	<section class="block" id="households">
+		<div class="block-head">
+			<h2>Households</h2>
+			<p>Each household sells 16 labour hours a day and spends its income on a CES utility bundle that includes leisure. A household that lacks utility for too long leaves the economy, and adults found new households.</p>
+		</div>
+		<div class="grid" data-charts="households"></div>
+	</section>
+
+	<section class="block" id="industries">
+		<div class="block-head">
+			<h2>Industries</h2>
+			<div class="inline-field">
+				<label for="industry">Industry</label>
+				<select id="industry"></select>
+			</div>
+		</div>
+		<div class="grid" data-charts="industries"></div>
+	</section>
+
+	<section class="block" id="accounts">
+		<div class="block-head">
+			<h2>National accounts</h2>
+			<p>Balance sheets that all agents published on the last completed day, aggregated by agent type, and money transferred between agent types on that day.</p>
+		</div>
+		<div class="grid accounts">
+			<div class="card">
+				<div class="card-head"><h3>Balance sheets by agent type</h3></div>
+				<div class="table-wrap" id="balance-sheets"></div>
+			</div>
+			<div class="card">
+				<div class="card-head"><h3>Monetary transactions</h3><span class="note">from row to column</span></div>
+				<div class="table-wrap" id="transactions"></div>
+			</div>
+		</div>
+	</section>
+</main>
+
+<footer class="wrap">
+	<p>JavaScript port of <a href="https://github.com/uwol/computational-economy" target="_blank" rel="noopener">uwol/computational-economy</a>
+	(GPL v3). The model and its parameters follow the Java version unchanged. The economic models are the original
+	<code>.properties</code> configurations. Population scaling multiplies the numbers of households, factories,
+	credit banks and traders.</p>
+	<p>Hard cash (M0) is not used by any agent in this model, so money supply starts at M1.</p>
+</footer>
+
+<script src="js/util.js"></script>
+<script src="js/kernels.js"></script>
+<script src="js/config.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

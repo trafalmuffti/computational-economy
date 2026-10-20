@@ -89,6 +89,28 @@ $ mvn clean test
 ```
 
 
+Web version (JavaScript / asm.js)
+---------------------------------
+
+The directory `web/` contains a port of the simulator to the browser, with a dashboard of live charts in place of the Swing dashboard. No build step and no dependencies are needed: open `web/index.html` in a browser, or serve the directory with any static web server, e.g.:
+
+```
+$ npx serve web
+```
+
+* `web/js/kernels.js`: numerical kernels in **asm.js**. These are the CES, Cobb-Douglas and root functions, the analytical and iterative optimization of utility and production under budget constraints, and the market step price functions. These are the hot paths of the simulation. Browsers compile the module ahead of time (V8 translates it to WebAssembly).
+* `web/js/engine.js`: time system, markets, banking, properties and the agent types *household*, *factory*, *trader*, *credit bank*, *central bank* and *state*. The structure follows the Java classes.
+* `web/js/config.js`: the original `.properties` configurations, embedded unchanged. The dashboard can scale the number of agents.
+* `web/js/stats.js`, `web/js/chart.js`, `web/js/app.js`: statistics, canvas line charts and the dashboard.
+
+To run the tests (the asm.js validation needs the V8 flag):
+
+```
+$ node --allow-natives-syntax web/test/kernels.test.js
+$ node web/test/run-headless.js interdependencies 365 0.25
+```
+
+
 Screenshots
 -----------
 
